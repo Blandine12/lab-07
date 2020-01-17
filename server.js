@@ -2,6 +2,7 @@
 const superagent = require('superagent');
 const express = require('express');
 const app = express();
+
 require('dotenv').config();
 
 const cors = require('cors');
@@ -74,24 +75,27 @@ app.get('/weather', (request, response) => {
 
 });
 
-// app.get('/weather', (request, response) =>{
 
-//   try {
-//     const weatherData = require('./data/darksky.json');
-//     const dailyWeather = weatherData.daily.data.map(day => {
-//       return new MapWeather(day);
-//     });
-//     // let dailyArray =[];
+app.get('/events', (request, response) => {
+  let key = process.env.EVENTFUL_API_KEY;
+  let {search_query }= request.query;
+  const eventDataUrl =`http://api.eventful.com/json/events/search?keywords=music&location=${search_query}&app_key=${process.env.EVENTFUL_API_KEY}`;
 
-//     // dailyWeather.forEach(day => {
-//     //   dailyArray.push(new Weather(day));
-//     // });
-//     // response.status(200).send(dailyArray);
-//     response.status(200).send(dailyWeather);
-//   } catch(error) {
-//     errorHandler('If you did not get result. Please try again.', response);
-//   }
-// });
+  superagent.get(eventDataUrl)
+    .then(eventData => {
+      let eventMassData = JSON.parse(eventData.text);
+      let localEvent =eventMassData.events.event.map(thisEventData => {
+        return new NewEvent(thisEventData);
+      });
+      response.status(200).send(localEvent);
+    })
+    .catch(() => {
+      errorHandler('If you did not get result. Please, try again', request, response);
+    });
+
+});
+
+
 
 
 
@@ -110,11 +114,19 @@ function Location(city, localData) {
 
 function MapWeather(dailyForecast) {
   this.forecast = dailyForecast.summary;
-  this.time = new Date(dailyForecast.time).toDateString();
+  this.time = new Date(dailyForecast.time *1000).toDateString();
 }
 
 function errorHandler(string, response) {
   response.status(500).send(string);
+}
+
+function NewEvent(thisEventData) {
+  this.name = thisEventData.title;
+  this.event_date = thisEventData.start_time.slice(0,10);
+  this.link = thisEventData.url;
+  this.summary = thisEventData.description;
+
 }
 
 // Make sure the server is listening for requests
